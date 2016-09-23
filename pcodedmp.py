@@ -44,15 +44,15 @@ def getTypeAndLength(buffer, offset, endian):
     else:
         return ord(buffer[offset + 1]), ord(buffer[offset])
 
-def processPROJECT(vbaParser, projectPath, disasmonly):
+def processPROJECT(vbaParser, projectPath, disasmOnly):
     projectData = vbaParser.ole_file.openstream(projectPath).read()
-    if (not disasmonly):
+    if (not disasmOnly):
         print('-' * 79)
         print('PROJECT dump:')
         print(projectData)
     return projectData
 
-def processDir(vbaParser, dirPath, verbose, disasmonly):
+def processDir(vbaParser, dirPath, verbose, disasmOnly):
     tags = {
 	 1 : 'PROJ_SYSKIND',	# 0 - Win16, 1 - Win32, 2 - Mac, 3 - Win64
 	 2 : 'PROJ_LCID',
@@ -114,14 +114,14 @@ def processDir(vbaParser, dirPath, verbose, disasmonly):
 	72 : 'MOD_UNICODE_DOCSTRING',
 	73 : 'MOD_UNICODE_HELPFILE'
     }
-    if (not disasmonly):
+    if (not disasmOnly):
         print('-' * 79)
         print('dir stream after decompression:')
     dirDataCompressed = vbaParser.ole_file.openstream(dirPath).read()
     dirData = decompress_stream(dirDataCompressed)
     streamSize = len(dirData)
     codeModules = []
-    if (not disasmonly):
+    if (not disasmOnly):
         print('%d bytes' % streamSize)
         if (verbose):
             print(hexdump3(dirData, length=16))
@@ -143,25 +143,25 @@ def processDir(vbaParser, dirPath, verbose, disasmonly):
                 tagName = 'UNKNOWN'
             else:
                 tagName = tags[tag]
-            if (not disasmonly):
+            if (not disasmOnly):
                 print('%08X:  %s' % (offset, tagName), end='')
             offset += 6
             if (wLength):
-                if (not disasmonly):
+                if (not disasmOnly):
                     print(':')
                     print(hexdump3(dirData[offset:offset + wLength], length=16))
                 if (tagName == 'MOD_STREAM'):
                     codeModules.append(dirData[offset:offset + wLength])
                 offset += wLength
-            elif (not disasmonly):
+            elif (not disasmOnly):
                 print('')
         except:
             break
     return dirData, codeModules
 
-def process_VBA_PROJECT(vbaParser, vbaProjectPath, verbose, disasmonly):
+def process_VBA_PROJECT(vbaParser, vbaProjectPath, verbose, disasmOnly):
     vbaProjectData = vbaParser.ole_file.openstream(vbaProjectPath).read()
-    if (disasmonly):
+    if (disasmOnly):
         return vbaProjectData
     print('-' * 79)
     print('_VBA_PROJECT stream:')
@@ -359,9 +359,9 @@ opcodes = {
  67 : { 'mnem' : 'ArgsMemCallWith',       'args' : ['name',   '0x'],         'varg' : False },
  68 : { 'mnem' : 'ArgsArray',             'args' : ['name',   '0x'],         'varg' : False },
  69 : { 'mnem' : 'Assert',                'args' : [],                       'varg' : False },
- 70 : { 'mnem' : 'Bos',                   'args' : ['0x'],                   'varg' : False },
- 71 : { 'mnem' : 'BosImplicit',           'args' : [],                       'varg' : False },
- 72 : { 'mnem' : 'Bol',                   'args' : [],                       'varg' : False },
+ 70 : { 'mnem' : 'BoS',                   'args' : ['0x'],                   'varg' : False },
+ 71 : { 'mnem' : 'BoSImplicit',           'args' : [],                       'varg' : False },
+ 72 : { 'mnem' : 'BoL',                   'args' : [],                       'varg' : False },
  73 : { 'mnem' : 'LdAddressOf',           'args' : [],                       'varg' : False },
  74 : { 'mnem' : 'MemAddressOf',          'args' : [],                       'varg' : False },
  75 : { 'mnem' : 'Case',                  'args' : [],                       'varg' : False },
@@ -504,7 +504,7 @@ opcodes = {
 212 : { 'mnem' : 'ParamNamed',            'args' : ['name'],                 'varg' : False },
 213 : { 'mnem' : 'PrintChan',             'args' : [],                       'varg' : False },
 214 : { 'mnem' : 'PrintComma',            'args' : [],                       'varg' : False },
-215 : { 'mnem' : 'PrintEos',              'args' : [],                       'varg' : False },
+215 : { 'mnem' : 'PrintEoS',              'args' : [],                       'varg' : False },
 216 : { 'mnem' : 'PrintItemComma',        'args' : [],                       'varg' : False },
 217 : { 'mnem' : 'PrintItemNL',           'args' : [],                       'varg' : False },
 218 : { 'mnem' : 'PrintItemSemi',         'args' : [],                       'varg' : False },
@@ -592,7 +592,8 @@ def translateOpcode(opcode, vbaVer):
             return opcode + 10
         else:	# 171 <= opcode <= 252
             return opcode + 11
-    elif (vbaVer == 6):
+    #elif (vbaVer == 6):
+    elif (vbaVer in [6, 7]):
         if   (  0 <= opcode <= 173):
             return opcode
         elif (174 <= opcode <= 175):
@@ -604,7 +605,7 @@ def translateOpcode(opcode, vbaVer):
     else:
         return opcode
 
-def getID(idCode, identifiers):
+def getID(idCode, identifiers, vbaVer):
     internalNames = [
 	'<crash>', '0', 'Abs', 'Access', 'AddressOf', 'Alias', 'And', 'Any',
 	'Append', 'Array', 'As', 'Assert', 'B', 'Base', 'BF', 'Binary',
@@ -642,7 +643,10 @@ def getID(idCode, identifiers):
 
     idCode >>= 1
     if (idCode >= 0x100):
-        return identifiers[idCode - 0x100]
+        if (vbaVer < 7):
+            return identifiers[idCode - 0x100]
+        else:
+            return identifiers[idCode - 0x104]
     else:
         return internalNames[idCode]
 
@@ -674,8 +678,10 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, identifiers, ver
         if (mnemonic in ['Coerce', 'CoerceVar', 'DefType']):
             if (opType < len(varTypesLong)):
                 print('(%s) ' % varTypesLong[opType], end='')
+            elif (opType == 17):
+                print('(Byte) ', end='')
             else:
-                print('(%d)' % opType, end='')
+                print('(%d) ' % opType, end='')
         elif (mnemonic in ['Dim', 'DimImplicit', 'Type']):
             if   (opType ==  8):
                 print('(Public) ', end='')
@@ -701,13 +707,13 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, identifiers, ver
                 opType -= 16
         elif (mnemonic == 'Option'):
             print(' (%s)' % options[opType], end='')
-        elif (mnemonic in ['ReDim', 'RedimAs']):
-            if (opType):
+        elif (mnemonic in ['Redim', 'RedimAs']):
+            if (opType & 16):
                 print('(Preserve) ', end='')
         for arg in instruction['args']:
             if (arg == 'name'):
                 offset, word = getVar(moduleData, offset, endian, False)
-                varName = getID(word, identifiers)
+                varName = getID(word, identifiers, vbaVer)
                 if (opType < len(varTypes)):
                     strType = varTypes[opType]
                 else:
@@ -769,14 +775,14 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, identifiers, ver
             offset, wLength = getVar(moduleData, offset, endian, False)
             substring = moduleData[offset:offset + wLength]
             print('0x%04X ' % wLength, end='')
-            if (mnemonic in ['LitStr', 'QuoteRem', 'Rem']):
+            if (mnemonic in ['LitStr', 'QuoteRem', 'Rem', 'Reparse']):
                 print('"%s"' % substring, end='')
             elif (mnemonic in ['OnGosub', 'OnGoto']):
                 offset1 = offset
                 vars = []
                 for i in range(wLength / 2):
                     offset1, word = getVar(moduleData, offset1, endian, False)
-                    vars.append(getID(word, identifiers))
+                    vars.append(getID(word, identifiers, vbaVer))
                 print('%s ' % (', '.join(v for v in vars)), end='')
             else:
                 hexdump = ' '.join('{:02X}'.format(ord(c)) for c in substring)
@@ -786,8 +792,8 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, identifiers, ver
                 offset += 1
         print('')
 
-def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmonly):
-    if (verbose and not disasmonly):
+def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmOnly):
+    if (verbose and not disasmOnly):
         print(hexdump3(moduleData, length=16))
     # Determine endinanness: PC (little-endian) or Mac (big-endian)
     if (getWord(moduleData, 2, '<') > 0xFF):
@@ -799,9 +805,13 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmo
     vbaVer = 3
     try:
         version = getWord(vbaProjectData, 2, endian)
-        # TODO:
-        #	- Handle VBA7
-        if (version >= 0x6B):
+        if (verbose):
+            print('Office version: 0x%04X.' % version)
+        if   (version >= 0xA0):	# TODO - Office 2013 is 0x00A3; check Office 2010
+            # VBA7
+            vbaVer = 7
+            offset = 0x0019
+        elif (version >= 0x6B):
             # VBA6
             vbaVer = 6
             offset = 0x0019
@@ -834,7 +844,7 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmo
         print('Error: %s.' % e, file=sys.stderr)
     return
 
-def processFile(fileName, verbose, disasmonly):
+def processFile(fileName, verbose, disasmOnly):
     # TODO:
     #	- Handle VBA3 documents
     print('Processing file: %s' % fileName)
@@ -846,27 +856,27 @@ def processFile(fileName, verbose, disasmonly):
             return
         for vbaRoot, projectPath, dirPath in vbaProjects:
             print('=' * 79)
-            if (not disasmonly):
+            if (not disasmOnly):
                 print('dir stream: %s' % dirPath)
-            dirData, codeModules = processDir(vbaParser, dirPath, verbose, disasmonly)
+            dirData, codeModules = processDir(vbaParser, dirPath, verbose, disasmOnly)
             vbaProjectPath = vbaRoot + 'VBA/_VBA_PROJECT'
-            vbaProjectData = process_VBA_PROJECT(vbaParser, vbaProjectPath, verbose, disasmonly)
+            vbaProjectData = process_VBA_PROJECT(vbaParser, vbaProjectPath, verbose, disasmOnly)
             identifiers = getTheIdentifiers(vbaProjectData)
-            if (not disasmonly):
+            if (not disasmOnly):
                 print('Identifiers:')
                 print('')
                 for identifier in identifiers:
                     print('%s' % identifier)
                 print('')
                 print('_VBA_PROJECT parsing done.')
-            if (not disasmonly):
+            if (not disasmOnly):
                 print('-' * 79)
             print('Module streams:')
             for module in codeModules:
                 modulePath = vbaRoot + 'VBA/' + module
                 moduleData = vbaParser.ole_file.openstream(modulePath).read()
                 print ('%s - %d bytes' % (modulePath, len(moduleData)))
-                pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmonly)
+                pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmOnly)
     except Exception as e:
         print('Error: %s.' % e, file=sys.stderr)
     vbaParser.close()
@@ -888,7 +898,7 @@ if __name__ == '__main__':
                 for name, subdirList, fileList in os.walk(name):
                     for fname in fileList:
                         fullName = os.path.join(name, fname)
-                        processFile(fullName, args.verbose, args.disasmonly)
+                        processFile(fullName, args.verbose, args.disasmOnly)
                     if args.norecurse:
                         while len(subdirList) > 0:
                             del(subdirList[0])
