@@ -32,7 +32,7 @@ The script also accepts the following command-line options:
 
 `-n`, `--norecurse` If a name specified on the command line is a directory, process only the files in this directory; do not process the files in its subdirectories.
 
-`-d`, `--disasmonly`	Only the p-code will be disassembled, without the parsed contents of the `dir` stream, the contents of the `PROJECT` stream, or the identifiers in the `_VBA_PROJECT` stream.
+`-d`, `--disasmonly`	Only the p-code will be disassembled, without the parsed contents of the `dir` stream or the identifiers in the `_VBA_PROJECT` stream.
 
 `--verbose`	The contents of the `dir` and `_VBA_PROJECT` streams is dumped in hex and ASCII form. In addition, the raw bytes of each compiled into p-code VBA line is also dumped in hex and ASCII.
 
