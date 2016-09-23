@@ -20,9 +20,9 @@ The script should work both in Python 2.6+ and 3.x, although I've been using it 
 
 ## Usage
 
-The script takes as a command-line argument a list of one or more names of files or directories. If the name is an OLE2 document, it will be inspected for VBA code and the p-code of each code module will be disassembled. If the name is a directory, all the files in this directory and its subdirectories will be similarly processed. In addition to the disassembled p-code, by default the script also displays the contents of the `PROJECT` stream (which is ASCII text), the parsed records of the `dir` stream, as well as the identifiers (variable and function names) used in the VBA modules and stored in the `_VBA_PROJECT` stream.
+The script takes as a command-line argument a list of one or more names of files or directories. If the name is an OLE2 document, it will be inspected for VBA code and the p-code of each code module will be disassembled. If the name is a directory, all the files in this directory and its subdirectories will be similarly processed. In addition to the disassembled p-code, by default the script also displays the parsed records of the `dir` stream, as well as the identifiers (variable and function names) used in the VBA modules and stored in the `_VBA_PROJECT` stream.
 
-The script supports VBA5 (Office 97, MacOffice 98) and VBA6 (Office 2000 and higher).
+The script supports VBA5 (Office 97, MacOffice 98), VBA6 (Office 2000 to Office 2009) and VBA7 (Office 2010 and higher).
 
 The script also accepts the following command-line options:
 
@@ -73,10 +73,10 @@ For reference, it is the result of compiling the following VBA code:
 
 - While the script should support documents created by MacOffice, this has not been tested (and you know how well untested code usually works). This should be tested and any bugs related to it should be fixed.
 
-- The 64-bit versions of Office use yet another VBA version - VBA7. It uses different p-code opcodes and the current version of the script will not be able to disassemble them correctly. I know how to do it but I need documents with macros created by such a version of Office for testing.
-
-- I am not an experienced Python programmer and the code is ugly. Especially the humongous opcode tables make me want to barf every time I look at them. Somebody more familiar with Python than me should probably rewrite the script and make it look better.
+- I am not an experienced Python programmer and the code is ugly. Somebody more familiar with Python than me should probably rewrite the script and make it look better.
 
 ## Change log
 
 Version 1.00:	Initial version.
+
+Version 1.01:	Storing the opcodes in a more efficient manner. Implemented VBA7 support.
