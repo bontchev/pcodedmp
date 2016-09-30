@@ -807,7 +807,8 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmO
         version = getWord(vbaProjectData, 2, endian)
         if (verbose):
             print('Office version: 0x%04X.' % version)
-        if   (version >= 0xA0):	# TODO - Office 2013 is 0x00A3; check Office 2010
+	# TODO - Office 2010 is 0x0097; Office 2013 is 0x00A3; check Office 2016
+        if   (version >= 0x97):
             # VBA7
             vbaVer = 7
             offset = 0x0019
@@ -848,6 +849,7 @@ def processFile(fileName, verbose, disasmOnly):
     # TODO:
     #	- Handle VBA3 documents
     print('Processing file: %s' % fileName)
+    vbaParser = None
     try:
         vbaParser = VBA_Parser(fileName)
         vbaProjects = vbaParser.find_vba_projects()
@@ -879,7 +881,8 @@ def processFile(fileName, verbose, disasmOnly):
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, verbose, disasmOnly)
     except Exception as e:
         print('Error: %s.' % e, file=sys.stderr)
-    vbaParser.close()
+    if (vbaParser):
+        vbaParser.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(version='%(prog)s version ' + __VERSION__,
