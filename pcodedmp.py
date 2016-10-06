@@ -8,7 +8,7 @@ import argparse
 import sys
 import os
 
-__author__ = 'Vesselin Bontchev <vbontchev@yahoo.com>'
+__author__  = 'Vesselin Bontchev <vbontchev@yahoo.com>'
 __license__ = 'GPL'
 __VERSION__ = '1.01'
 
@@ -266,6 +266,7 @@ def getTheIdentifiers(vbaProjectData):
         # Now offset points to the start of the variable names area
         for id in range(numIDs):
             isKwd = False
+            ident = ''
             idType, idLength = getTypeAndLength(vbaProjectData, offset, endian)
             offset += 2
             if ((idLength == 0) and (idType == 0)):
@@ -276,7 +277,8 @@ def getTheIdentifiers(vbaProjectData):
             if (idType & 0x80):
                 offset += 6
             if (idLength):
-                identifiers.append(vbaProjectData[offset:offset + idLength])
+                ident = vbaProjectData[offset:offset + idLength]
+                identifiers.append(ident)
                 offset += idLength
             if (not isKwd):
                 offset += 4
@@ -617,7 +619,7 @@ def getID(idCode, identifiers, vbaVer):
 	'DefInt', 'DefLng', 'DefObj', 'DefSng', 'DefStr', 'DefVar', 'Dim', 'Dir',
 	'Dir$', 'Do', 'DoEvents', 'Double', 'Each', 'Else', 'ElseIf', 'Empty',
 	'End', 'EndIf', 'Enum', 'Eqv', 'Erase', 'Error', 'Error$', 'Event',
-	'WithEvents', 'Exit', 'Explicit', 'F', 'False', 'Fix', 'For', 'Format',
+	'WithEvents', 'Explicit', 'F', 'False', 'Fix', 'For', 'Format',
 	'Format$', 'FreeFile', 'Friend', 'Function', 'Get', 'Global', 'Go', 'GoSub',
 	'Goto', 'If', 'Imp', 'Implements', 'In', 'Input', 'Input$', 'InputB',
 	'InputB', 'InStr', 'InputB$', 'Int', 'InStrB', 'Is', 'Integer', 'Left',
@@ -641,14 +643,23 @@ def getID(idCode, identifiers, vbaVer):
 	'=>', '>', '><', '>=', '?', '\\', '^', ':='
     ]
 
+    origCode = idCode
     idCode >>= 1
-    if (idCode >= 0x100):
-        if (vbaVer < 7):
-            return identifiers[idCode - 0x100]
+    try:
+        if (idCode >= 0x100):
+	    idCode -= 0x100
+            if (vbaVer >= 7):
+                idCode -= 4
+		if (idCode > 0xBE):
+		    idCode -= 1
+	    return identifiers[idCode]
         else:
-            return identifiers[idCode - 0x104]
-    else:
-        return internalNames[idCode]
+            if (vbaVer >= 7):
+                if (idCode >= 0xC3):
+		    idCode -= 1
+	    return internalNames[idCode]
+    except:
+        return 'id_{0:04X}'.format(origCode)
 
 def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, identifiers, verbose, line):
     varTypes = ['', '?', '%', '&', '!', '#', '@', '?', '$', '?', '?', '?', '?', '?']
@@ -656,7 +667,11 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, identifiers, ver
     specials = ['False', 'True', 'Null', 'Empty']
     options = ['Base 0', 'Base 1', 'Compare Text', 'Compare Binary', 'Explicit', 'Private Module']
 
+    if (verbose and (lineLength > 0)):
+        print('%04X: ' % lineStart, end='')
     print('Line #%d:' % line)
+    if (lineLength <= 0):
+	return
     if (verbose):
         print(hexdump3(moduleData[lineStart:lineStart + lineLength], length=16))
     offset = lineStart
@@ -867,8 +882,10 @@ def processFile(fileName, verbose, disasmOnly):
             if (not disasmOnly):
                 print('Identifiers:')
                 print('')
+                i = 0
                 for identifier in identifiers:
-                    print('%s' % identifier)
+                    print('%04X: %s' % (i, identifier))
+                    i += 1
                 print('')
                 print('_VBA_PROJECT parsing done.')
             if (not disasmOnly):
