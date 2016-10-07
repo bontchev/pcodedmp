@@ -79,4 +79,4 @@ For reference, it is the result of compiling the following VBA code:
 
 Version 1.00:	Initial version.
 
-Version 1.01:	Storing the opcodes in a more efficient manner. Implemented VBA7 support.
+Version 2.00:	Storing the opcodes in a more efficient manner. Implemented VBA7 support. Implemented support for documents created by the 64-bit version of Office.
