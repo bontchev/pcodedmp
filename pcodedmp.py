@@ -10,7 +10,7 @@ import os
 
 __author__  = 'Vesselin Bontchev <vbontchev@yahoo.com>'
 __license__ = 'GPL'
-__VERSION__ = '2.00'
+__VERSION__ = '1.1.0'
 
 def getWord(buffer, offset, endian):
     return unpack_from(endian + 'H', buffer, offset)[0]

@@ -77,6 +77,6 @@ For reference, it is the result of compiling the following VBA code:
 
 ## Change log
 
-Version 1.00:	Initial version.
+Version 1.0.0:	Initial version.
 
-Version 2.00:	Storing the opcodes in a more efficient manner. Implemented VBA7 support. Implemented support for documents created by the 64-bit version of Office.
+Version 1.1.0:	Storing the opcodes in a more efficient manner. Implemented VBA7 support. Implemented support for documents created by the 64-bit version of Office.
