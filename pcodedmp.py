@@ -652,19 +652,19 @@ def getID(idCode, identifiers, vbaVer, is64bit):
     idCode >>= 1
     try:
         if (idCode >= 0x100):
-	    idCode -= 0x100
+            idCode -= 0x100
             if (vbaVer >= 7):
                 idCode -= 4
                 if (is64bit):
                     idCode -= 3
-		if (idCode > 0xBE):
-		    idCode -= 1
-	    return identifiers[idCode]
+                if (idCode > 0xBE):
+                    idCode -= 1
+            return identifiers[idCode]
         else:
             if (vbaVer >= 7):
                 if (idCode >= 0xC3):
-		    idCode -= 1
-	    return internalNames[idCode]
+                    idCode -= 1
+            return internalNames[idCode]
     except:
         return 'id_{0:04X}'.format(origCode)
 
@@ -678,7 +678,7 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
         print('{0:04X}: '.format(lineStart), end='')
     print('Line #{0:d}:'.format(line))
     if (lineLength <= 0):
-	return
+        return
     if (verbose):
         print(hexdump3(moduleData[lineStart:lineStart + lineLength], length=16))
     offset = lineStart
