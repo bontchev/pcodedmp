@@ -8,13 +8,13 @@ It is not widely known, but macros written in VBA (Visual Basic for Applications
 
 - _P-code_. As each VBA line is entered into the VBA editor, it is immediately compiled into p-code (a pseudo code for a stack machine) and stored in a different place in the module stream. The p-code is precisely what is executed most of the time. In fact, even when you open the source of a macro module in the VBA editor, what is displayed is not the decompressed source code but the p-code decompiled into source. Only if the document is opened under a version of Office that uses a different VBA version from the one that has been used to create the document, the stored compressed source code is re-compiled into p-code and then that p-code is executed. This makes it possible to open a VBA-containing document on any version of Office that supports VBA and have the macros inside remain executable, despite the fact that the different versions of VBA use different (incompatible) p-code instructions.
 
-- _Execodes_. When the p-code has been executed at least once, a further tokenized form of it is stored elsewhere in the document (in streams, the names of which begin with `__SRP_`, followed by a number). From there is can be executed much faster. However, the format of the execodes is extremely complex and is specific for the particular Office version (not VBA version) in which they have been created. This makes them extremely non-portable. In addition, their presence is not necessary - they can be removed and the macros will run just fine (from the p-code).
+- _Execodes_. When the p-code has been executed at least once, a further tokenized form of it is stored elsewhere in the document (in streams, the names of which begin with `__SRP_`, followed by a number). From there it can be executed much faster. However, the format of the execodes is extremely complex and is specific for the particular Office version (not VBA version) in which they have been created. This makes them extremely non-portable. In addition, their presence is not necessary - they can be removed and the macros will run just fine (from the p-code).
 
 Since most of the time it is the p-code that determines what exactly a macro would do (even if neither source code, nor execodes are present), it would make sense to have a tool that can display it. This is what prompted us to create this VBA p-code disassembler.
 
 ## Installation
 
-The script will work only in Python version 2.6 or higher. It won't work in Python 3.x, because one of the imported modules (`oletools`) does not support Python 3.x. It depends on Philippe Lagadec's package [oletools](https://github.com/decalage2/oletools), so it has to be installed before using the script. Use the command
+The script will work only in Python version 2.6 or higher. It won't work in Python 3.x, because one of the imported modules (`oletools`) does not support Python 3.x. It depends on Philippe Lagadec's package [oletools](https://github.com/decalage2/oletools), so this package has to be installed before using the script. It can be installed with the command
 
 	pip install oletools
 
@@ -34,18 +34,18 @@ The script also accepts the following command-line options:
 
 `-d`, `--disasmonly`	Only the p-code will be disassembled, without the parsed contents of the `dir` stream or the identifiers in the `_VBA_PROJECT` stream.
 
-`--verbose`	The contents of the `dir` and `_VBA_PROJECT` streams is dumped in hex and ASCII form. In addition, the raw bytes of each compiled into p-code VBA line is also dumped in hex and ASCII.
+`--verbose`	The contents of the `dir` and `_VBA_PROJECT` streams is dumped in hex and ASCII form. In addition, the raw bytes of each compiled into p-code VBA line are also dumped in hex and ASCII.
 
 For instance, using the script on one of the documents in the [proof of concept](http://bontchev.my.contact.bg/poc2.zip) mentioned above produces the following results:
 
 	python pcodedmp.py -d Word2013.doc
 
-	Processing file: poc2b.doc
+	Processing file: Word2013.doc
 	===============================================================================
 	Module streams:
 	Macros/VBA/ThisDocument - 1517 bytes
 	Line #0:
-	        FuncDefn (Sub / Property Set) func_00000000
+	        FuncDefn (Private Sub Document_Open())
 	Line #1:
 	        LitStr 0x001D "This could have been a virus!"
 	        Ld vbOKOnly
@@ -80,3 +80,5 @@ For reference, it is the result of compiling the following VBA code:
 Version 1.0.0:	Initial version.
 
 Version 1.1.0:	Storing the opcodes in a more efficient manner. Implemented VBA7 support. Implemented support for documents created by the 64-bit version of Office.
+
+Version 1.2.0:	Disassembling the various declarations (`New`, `Type`, `Dim`, `ReDim`, `Sub`, `Function`, `Property`).
