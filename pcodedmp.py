@@ -1,16 +1,35 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from oletools.olevba import VBA_Parser, decompress_stream
-from oletools.ezhexviewer import hexdump3
 from struct import *
 import argparse
 import sys
 import os
 
+if (sys.version_info > (3,)):
+    from oletools.olevba3 import VBA_Parser, decompress_stream
+    xrange = range
+    def ord(x):
+        return x
+    def decode(x):
+        return x.decode('utf-8')
+else:
+    from oletools.olevba import VBA_Parser, decompress_stream
+    def decode(x):
+        return x
+
 __author__  = 'Vesselin Bontchev <vbontchev@yahoo.com>'
 __license__ = 'GPL'
-__VERSION__ = '1.2.0'
+__VERSION__ = '1.2.1'
+
+def hexdump(buffer, length=16):
+    theHex = lambda data: ' '.join('{:02X}'.format(ord(i)) for i in data)
+    theStr = lambda data: ''.join(chr(ord(i)) if (31 < ord(i) < 127) else '.' for i in data)
+    result = ''
+    for offset in xrange(0, len(buffer), length):
+        data = buffer[offset:offset + length]
+        result += '{:08X}   {:{}}    {}\n'.format(offset, theHex(data), length * 3 - 1, theStr(data))
+    return result
 
 def getWord(buffer, offset, endian):
     return unpack_from(endian + 'H', buffer, offset)[0]
@@ -125,9 +144,9 @@ def processDir(vbaParser, dirPath, verbose, disasmOnly):
     streamSize = len(dirData)
     codeModules = []
     if (not disasmOnly):
-        print('{0:d} bytes'.format(streamSize))
+        print('{:d} bytes'.format(streamSize))
         if (verbose):
-            print(hexdump3(dirData, length=16))
+            print(hexdump(dirData))
         print('dir stream parsed:')
     offset = 0
     # The "dir" stream is ALWAYS in little-endian format, even on a Mac
@@ -147,14 +166,14 @@ def processDir(vbaParser, dirPath, verbose, disasmOnly):
             else:
                 tagName = tags[tag]
             if (not disasmOnly):
-                print('{0:08X}:  {1}'.format(offset, tagName), end='')
+                print('{:08X}:  {}'.format(offset, tagName), end='')
             offset += 6
             if (wLength):
                 if (not disasmOnly):
                     print(':')
-                    print(hexdump3(dirData[offset:offset + wLength], length=16))
+                    print(hexdump(dirData[offset:offset + wLength]))
                 if   (tagName == 'MOD_STREAM'):
-                    codeModules.append(dirData[offset:offset + wLength])
+                    codeModules.append(decode(dirData[offset:offset + wLength]))
                 elif (tagName == 'PROJ_SYSKIND'):
                     sysKind = getDWord(dirData, offset, '<')
                     is64bit = sysKind == 3
@@ -171,9 +190,9 @@ def process_VBA_PROJECT(vbaParser, vbaProjectPath, verbose, disasmOnly):
         return vbaProjectData
     print('-' * 79)
     print('_VBA_PROJECT stream:')
-    print('{0:d} bytes'.format(len(vbaProjectData)))
+    print('{:d} bytes'.format(len(vbaProjectData)))
     if (verbose):
-        print(hexdump3(vbaProjectData, length=16))
+        print(hexdump(vbaProjectData))
     return vbaProjectData
 
 def getTheIdentifiers(vbaProjectData):
@@ -207,7 +226,7 @@ def getTheIdentifiers(vbaProjectData):
                     else:
                         c = vbaProjectData[offset + 2]
                     offset += refLength
-                    if (c in ['C', 'D']):
+                    if (chr(ord(c)) in ['C', 'D']):
                         offset = skipStructure(vbaProjectData, offset, endian, False, 1, False)
             offset += 10
             offset, word = getVar(vbaProjectData, offset, endian, False)
@@ -283,13 +302,13 @@ def getTheIdentifiers(vbaProjectData):
             if (idType & 0x80):
                 offset += 6
             if (idLength):
-                ident = vbaProjectData[offset:offset + idLength]
+                ident = decode(vbaProjectData[offset:offset + idLength])
                 identifiers.append(ident)
                 offset += idLength
             if (not isKwd):
                 offset += 4
     except Exception as e:
-        print('Error: {0}.'.format(e), file=sys.stderr)
+        print('Error: {}.'.format(e), file=sys.stderr)
     return identifiers
 
 #'name', '0x', 'imp_', 'func_', 'var_', 'rec_', 'type_', 'context_'
@@ -343,7 +362,7 @@ opcodes = {
  43 : { 'mnem' : 'ArgsSt',                'args' : ['name',   '0x'],         'varg' : False },
  44 : { 'mnem' : 'ArgsMemSt',             'args' : ['name',   '0x'],         'varg' : False },
  45 : { 'mnem' : 'ArgsDictSt',            'args' : ['name',   '0x'],         'varg' : False },
- 46 : { 'mnem' : 'set',                   'args' : ['name'],                 'varg' : False },
+ 46 : { 'mnem' : 'Set',                   'args' : ['name'],                 'varg' : False },
  47 : { 'mnem' : 'Memset',                'args' : ['name'],                 'varg' : False },
  48 : { 'mnem' : 'Dictset',               'args' : ['name'],                 'varg' : False },
  49 : { 'mnem' : 'Indexset',              'args' : ['0x'],                   'varg' : False },
@@ -668,7 +687,7 @@ def getID(idCode, identifiers, vbaVer, is64bit):
                     idCode -= 1
             return internalNames[idCode]
     except:
-        return 'id_{0:04X}'.format(origCode)
+        return 'id_{:04X}'.format(origCode)
 
 def getName(buffer, identifiers, offset, endian, vbaVer, is64bit):
     objectID = getWord(buffer, offset, endian)
@@ -703,37 +722,31 @@ def disasmImp(objectTable, identifiers, arg, word, mnemonic, endian, vbaVer, is6
         if (arg == 'imp_' and (len(objectTable) >= word + 8)):
             impName = getName(objectTable, identifiers, word + 6, endian, vbaVer, is64bit)
         else:
-            impName = '{0}{1:04X} '.format(arg, word)
+            impName = '{}{:04X} '.format(arg, word)
     else:
-        # This is a rather messy way of processing what is probably
-        # just a bit field but I couldn't figure out a smarter way
+        accessMode = ['Read', 'Write', 'Read Write']
+        lockMode   = ['Read Write', 'Write', 'Read']
         mode = word & 0x00FF
-        access = (word & 0xFF00) >> 8
+        access = (word & 0x0F00) >>  8
+        lock   = (word & 0xF000) >> 12
         impName = '(For '
-        if   (mode == 0x01):
+        if   (mode & 0x01):
             impName += 'Input'
-        elif (mode == 0x02):
+        elif (mode & 0x02):
             impName += 'Output'
-        elif (mode == 0x04):
+        elif (mode & 0x04):
             impName += 'Random'
-        elif (mode == 0x08):
+        elif (mode & 0x08):
             impName += 'Append'
         elif (mode == 0x20):
             impName += 'Binary'
-        if   (access == 0x01):
-            impName += ' Access Read'
-        elif (access == 0x02):
-            impName += ' Access Write'
-        elif (access == 0x03):
-            impName += ' Access Read Write'
-        elif (access == 0x10):
-            impName += ' Lock Read Write'
-        elif (access == 0x20):
-            impName += ' Lock Write'
-        elif (access == 0x30):
-            impName += ' Lock Read'
-        elif (access == 0x40):
-            impName += ' Shared'
+        if (access and (access <= len(accessMode))):
+            impName += ' Access ' + accessMode[access - 1]
+        if (lock):
+            if (lock & 0x04):
+                impName += ' Shared'
+            elif (lock <= len(accessMode)):
+                impName += ' Lock ' + lockMode[lock - 1]
         impName += ')'
     return impName
 
@@ -746,10 +759,14 @@ def disasmRec(indirectTable, identifiers, dword, endian, vbaVer, is64bit):
 
 def getTypeName(typeID):
     dimTypes = ['', 'Null', 'Integer', 'Long', 'Single', 'Double', 'Currency', 'Date', 'String', 'Object', 'Error', 'Boolean', 'Variant', '', 'Decimal', '', '', 'Byte']
+    typeFlags = typeID & 0xE0
+    typeID &= ~0xE0
     if (typeID < len(dimTypes)):
         typeName = dimTypes[typeID]
     else:
         typeName = ''
+    if (typeFlags & 0x80):
+        typeName += 'Ptr'
     return typeName
 
 def disasmType(indirectTable, dword):
@@ -757,42 +774,76 @@ def disasmType(indirectTable, dword):
     typeID = ord(indirectTable[dword + 6])
     if (typeID < len(dimTypes)):
         typeName = dimTypes[typeID]
-        if (len(typeName) > 0):
-            typeName = '(As ' + typeName + ')'
     else:
-        typeName = 'type_{0:08X}'.format(dword)
+        typeName = 'type_{:08X}'.format(dword)
     return typeName
 
-def disasmVar(indirectTable, identifiers, dword, endian, vbaVer, is64bit):
+def disasmObject(indirectTable, objectTable, identifiers, offset, endian, vbaVer, is64bit):
+    # TODO - Dim declarations in 64-bit Office documents
+    if (is64bit):
+        return ''
+    typeDesc = getDWord(indirectTable, offset, endian)
+    flags = getWord(indirectTable, typeDesc, endian)
+    if (flags & 0x02):
+        typeName = disasmType(indirectTable, typeDesc)
+    else:
+        word = getWord(indirectTable, typeDesc + 2, endian)
+        if (word == 0):
+            typeName = ''
+        else:
+            offs = (word >> 2) * 10
+            flags  = getWord(objectTable, offs, endian)
+            hlName = getWord(objectTable, offs + 6, endian)
+            if (flags & 0x02):
+                theNames = []
+                numNames = getWord(objectTable, hlName, endian)
+                offs = hlName + 2
+                for myName in range(numNames):
+                    theNames.append(getName(objectTable, identifiers, offs, endian, vbaVer, is64bit))
+                    offs += 2
+                typeName = ' '.join(theNames)
+            else:
+                typeName = getID(hlName, identifiers, vbaVer, is64bit)
+    return typeName
+
+def disasmVar(indirectTable, objectTable, identifiers, dword, endian, vbaVer, is64bit):
     bFlag1 = ord(indirectTable[dword])
     bFlag2 = ord(indirectTable[dword + 1])
     hasAs  = (bFlag1 & 0x20) != 0
     hasNew = (bFlag2 & 0x20) != 0
     varName = getName(indirectTable, identifiers, dword + 2, endian, vbaVer, is64bit)
     if (hasNew or hasAs):
-        varName += ' ('
+        varType = ''
         if (hasNew):
-            varName += 'New'
+            varType += 'New'
             if (hasAs):
-                varName += ' '
+                varType += ' '
         if (hasAs):
-            word = getWord(indirectTable, dword + 14, endian)
-            if (word == 0xFFFF):
-                typeID = ord(indirectTable[dword + 12])
+            if (is64bit):
+                offs = 16
             else:
-                typeDesc = getDWord(indirectTable, dword + 12, endian)
-                typeID = ord(indirectTable[typeDesc + 6])
-            typeName = getTypeName(typeID)
+                offs = 12
+            word = getWord(indirectTable, dword + offs + 2, endian)
+            if (word == 0xFFFF):
+                typeID = ord(indirectTable[dword + offs])
+                typeName = getTypeName(typeID)
+            else:
+                typeName = disasmObject(indirectTable, objectTable, identifiers, dword + offs, endian, vbaVer, is64bit)
             if (len(typeName) > 0):
-                varName += 'As ' + typeName
-        varName += ')'
+                varType += 'As ' + typeName
+        if (len(varType) > 0):
+            varName += ' (' + varType + ')'
     return varName
 
 def disasmArg(indirectTable, identifiers, argOffset, endian, vbaVer, is64bit):
     flags = getWord(indirectTable, argOffset, endian)
+    if (is64bit):
+        offs = 4
+    else:
+        offs = 0
     argName = getName(indirectTable, identifiers, argOffset + 2, endian, vbaVer, is64bit)
-    argType = getDWord(indirectTable, argOffset + 12, endian)
-    argOpts = getWord(indirectTable, argOffset + 24, endian)
+    argType = getDWord(indirectTable, argOffset + offs + 12, endian)
+    argOpts = getWord(indirectTable, argOffset + offs + 24, endian)
     if (argOpts & 0x0004):
         argName = 'ByVal ' + argName
     if (argOpts & 0x0002):
@@ -820,6 +871,8 @@ def disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endi
         offs2 = 4
     else:
         offs2 = 0
+    if (is64bit):
+        offs2 += 16
     argOffset = getDWord(indirectTable, dword + offs2 + 36, endian)
     retType   = getDWord(indirectTable, dword + offs2 + 40, endian)
     declOffset = getWord(indirectTable, dword + offs2 + 44, endian)
@@ -827,12 +880,12 @@ def disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endi
     argCount = ord(indirectTable[dword + offs2 + 55])
     newFlags = ord(indirectTable[dword + offs2 + 57])
     hasDeclare = False
-    if (((cOptions & 0x90) == 0) and (declOffset != 0xFFFF)):
-        hasDeclare = True
-        funcDecl += 'Declare '
+    # TODO - 'Private' and 'Declare' for 64-bit Office
     if (vbaVer > 5):
-        if ((newFlags & 0x0002) == 0):
+        if (((newFlags & 0x0002) == 0) and not is64bit):
             funcDecl += 'Private '
+        if (newFlags & 0x0004):
+            funcDecl += 'Friend '
     else:
         if ((flags & 0x0008) == 0):
             funcDecl += 'Private '
@@ -840,6 +893,12 @@ def disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endi
         funcDecl += 'Public '
     if (flags & 0x0080):
         funcDecl += 'Static '
+    if (((cOptions & 0x90) == 0) and (declOffset != 0xFFFF) and not is64bit):
+        hasDeclare = True
+        funcDecl += 'Declare '
+    if (vbaVer > 5):
+        if (newFlags & 0x20):
+            funcDecl += 'PtrSafe '
     hasAs = (flags & 0x0020) != 0
     if (flags & 0x1000):
         if (opType in [2, 6]):
@@ -857,9 +916,7 @@ def disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endi
         libName = getName(declarationTable, identifiers, declOffset + 2, endian, vbaVer, is64bit)
         funcDecl += ' Lib "' + libName + '" '
     argList = []
-    for argument in range(argCount):
-        if (argOffset + 26 > len(indirectTable)):
-            break
+    while ((argOffset != 0xFFFFFFFF) and (argOffset != 0) and (argOffset + 26 < len(indirectTable))):
         argName = disasmArg(indirectTable,identifiers, argOffset, endian, vbaVer, is64bit)
         argList.append(argName)
         argOffset = getDWord(indirectTable, argOffset + 20, endian)
@@ -878,13 +935,13 @@ def disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endi
 
 def disasmVarArg(moduleData, identifiers, offset, wLength, mnemonic, endian, vbaVer, is64bit):
     substring = moduleData[offset:offset + wLength]
-    varArgName = '0x{0:04X} '.format(wLength)
+    varArgName = '0x{:04X} '.format(wLength)
     if (mnemonic in ['LitStr', 'QuoteRem', 'Rem', 'Reparse']):
-        varArgName += '"' + substring + '"'
+        varArgName += '"' + decode(substring) + '"'
     elif (mnemonic in ['OnGosub', 'OnGoto']):
         offset1 = offset
         vars = []
-        for i in range(wLength / 2):
+        for i in range(int(wLength / 2)):
             offset1, word = getVar(moduleData, offset1, endian, False)
             vars.append(getID(word, identifiers, vbaVer, is64bit))
         varArgName += ', '.join(v for v in vars) + ' '
@@ -899,12 +956,12 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
     options = ['Base 0', 'Base 1', 'Compare Text', 'Compare Binary', 'Explicit', 'Private Module']
 
     if (verbose and (lineLength > 0)):
-        print('{0:04X}: '.format(lineStart), end='')
-    print('Line #{0:d}:'.format(line))
+        print('{:04X}: '.format(lineStart), end='')
+    print('Line #{:d}:'.format(line))
     if (lineLength <= 0):
         return
     if (verbose):
-        print(hexdump3(moduleData[lineStart:lineStart + lineLength], length=16))
+        print(hexdump(moduleData[lineStart:lineStart + lineLength]))
     offset = lineStart
     endOfLine = lineStart + lineLength
     while (offset < endOfLine):
@@ -913,37 +970,44 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
         opcode &= 0x03FF
         translatedOpcode = translateOpcode(opcode, vbaVer, is64bit)
         if (not translatedOpcode in opcodes):
-            print('Unrecognized opcode 0x{0:04X} at offset 0x{1:08X}.'.format(opcode, offset))
+            print('Unrecognized opcode 0x{:04X} at offset 0x{:08X}.'.format(opcode, offset))
             return
         instruction = opcodes[translatedOpcode]
         mnemonic = instruction['mnem']
         print('\t', end='')
         if (verbose):
-            print('{0:04X} '.format(opcode), end='')
-        print('{0} '.format(mnemonic), end='')
+            print('{:04X} '.format(opcode), end='')
+        print('{} '.format(mnemonic), end='')
         if (mnemonic in ['Coerce', 'CoerceVar', 'DefType']):
             if (opType < len(varTypesLong)):
-                print('({0}) '.format(varTypesLong[opType]), end='')
+                print('({}) '.format(varTypesLong[opType]), end='')
             elif (opType == 17):
                 print('(Byte) ', end='')
             else:
-                print('({0:d}) '.format(opType), end='')
+                print('({:d}) '.format(opType), end='')
         elif (mnemonic in ['Dim', 'DimImplicit', 'Type']):
-            if   (opType ==  8):
-                print('(Public) ', end='')
-            elif (opType == 16):
-                print('(Private) ', end='')
-            elif (opType == 32):
-                print('(Static) ', end='')
+            dimType = []
+            if   (opType & 0x04):
+                dimType.append('Global')
+            elif (opType & 0x08):
+                dimType.append('Public')
+            elif (opType & 0x10):
+                dimType.append('Private')
+            elif (opType & 0x20):
+                dimType.append('Static')
+            if ((opType & 0x01) and (mnemonic != 'Type')):
+                dimType.append('Const')
+            if (len(dimType)):
+                print('({}) '.format(' '.join(dimType)), end='')
         elif (mnemonic == 'LitVarSpecial'):
-            print('({0})'.format(specials[opType]), end='')
+            print('({})'.format(specials[opType]), end='')
         elif (mnemonic in ['ArgsCall', 'ArgsMemCall', 'ArgsMemCallWith']):
             if (opType < 16):
                 print('(Call) ', end='')
             else:
                 opType -= 16
         elif (mnemonic == 'Option'):
-            print(' ({0})'.format(options[opType]), end='')
+            print(' ({})'.format(options[opType]), end='')
         elif (mnemonic in ['Redim', 'RedimAs']):
             if (opType & 16):
                 print('(Preserve) ', end='')
@@ -951,34 +1015,40 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
             if (arg == 'name'):
                 offset, word = getVar(moduleData, offset, endian, False)
                 theName = disasmName(word, identifiers, mnemonic, opType, vbaVer, is64bit)
-                print('{0}'.format(theName), end='')
+                print('{}'.format(theName), end='')
             elif (arg in ['0x', 'imp_']):
                 offset, word = getVar(moduleData, offset, endian, False)
                 theImp = disasmImp(objectTable, identifiers, arg, word, mnemonic, endian, vbaVer, is64bit)
-                print('{0}'.format(theImp), end='')
+                print('{}'.format(theImp), end='')
             elif (arg in ['func_', 'var_', 'rec_', 'type_', 'context_']):
                 offset, dword = getVar(moduleData, offset, endian, True)
                 if   ((arg == 'rec_') and (len(indirectTable) >= dword + 20)):
                     theRec = disasmRec(indirectTable, identifiers, dword, endian, vbaVer, is64bit)
-                    print('{0}'.format(theRec), end='')
+                    print('{}'.format(theRec), end='')
                 elif ((arg == 'type_') and (len(indirectTable) >= dword + 7)):
                     theType = disasmType(indirectTable, dword)
-                    print('{0}'.format(theType), end='')
+                    print('(As {})'.format(theType), end='')
                 elif ((arg == 'var_') and (len(indirectTable) >= dword + 16)):
-                    theVar = disasmVar(indirectTable, identifiers, dword, endian, vbaVer, is64bit)
-                    print('{0}'.format(theVar), end='')
+                    if (opType & 0x20):
+                        print('(WithEvents) ', end='')
+                    theVar = disasmVar(indirectTable, objectTable, identifiers, dword, endian, vbaVer, is64bit)
+                    print('{}'.format(theVar), end='')
+                    if (opType & 0x10):
+                        word = getWord(moduleData, offset, endian)
+                        offset += 2
+                        print(' 0x{:04X}'.format(word), end='')
                 elif ((arg == 'func_') and (len(indirectTable) >= dword + 61)):
                     theFunc = disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endian, vbaVer, is64bit)
-                    print('{0}'.format(theFunc), end='')
+                    print('{}'.format(theFunc), end='')
                 else:
-                    print('{0}{1:08X} '.format(arg, dword), end='')
+                    print('{}{:08X} '.format(arg, dword), end='')
                 if (is64bit and (arg == 'context_')):
                     offset, dword = getVar(moduleData, offset, endian, True)
-                    print('{0:08X} '.format(dword), end='')
+                    print('{:08X} '.format(dword), end='')
         if (instruction['varg']):
             offset, wLength = getVar(moduleData, offset, endian, False)
             theVarArg = disasmVarArg(moduleData, identifiers, offset, wLength, mnemonic, endian, vbaVer, is64bit)
-            print('{0}'.format(theVarArg), end='')
+            print('{}'.format(theVarArg), end='')
             offset += wLength
             if (wLength & 1):
                 offset += 1
@@ -986,7 +1056,7 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
 
 def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose, disasmOnly):
     if (verbose and not disasmOnly):
-        print(hexdump3(moduleData, length=16))
+        print(hexdump(moduleData))
     # Determine endinanness: PC (little-endian) or Mac (big-endian)
     if (getWord(moduleData, 2, '<') > 0xFF):
         endian = '>'
@@ -998,18 +1068,24 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose
     try:
         version = getWord(vbaProjectData, 2, endian)
         if (verbose):
-            print('Internal Office version: 0x{0:04X}.'.format(version))
-	# TODO - Office 2010 is 0x0097; Office 2013 is 0x00A3; check Office 2016
+            print('Internal Office version: 0x{:04X}.'.format(version))
+	# Office 2010 is 0x0097; Office 2013 is 0x00A3;
+        # Office 2016 PC 32-bt is 0x00B2, 64-bit is 0x00D7, Mac is 0x00D9
         if (version >= 0x6B):
             if (version >= 0x97):
                 vbaVer = 7
             else:
                 vbaVer = 6
-            offset = 0x0019
-            dwLength = getDWord(moduleData, 0x003F, endian)
-            declarationTable = moduleData[0x0043:0x0043 + dwLength]
-            dwLength = getDWord(moduleData, 0x0011, endian)
-            tableStart = dwLength + 10
+            if (is64bit):
+                dwLength = getDWord(moduleData, 0x0043, endian)
+                declarationTable = moduleData[0x0047:0x0047 + dwLength]
+                dwLength = getDWord(moduleData, 0x0011, endian)
+                tableStart = dwLength + 12
+            else:
+                dwLength = getDWord(moduleData, 0x003F, endian)
+                declarationTable = moduleData[0x0043:0x0043 + dwLength]
+                dwLength = getDWord(moduleData, 0x0011, endian)
+                tableStart = dwLength + 10
             dwLength = getDWord(moduleData, tableStart, endian)
             tableStart += 4
             indirectTable = moduleData[tableStart:tableStart + dwLength]
@@ -1018,10 +1094,7 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose
             dwLength = getDWord(moduleData, dwLength2, endian)
             dwLength2 += 4
             objectTable = moduleData[dwLength2:dwLength2 + dwLength]
-            offs = dwLength2 + dwLength + 4
-            dwLength = getDWord(moduleData, offs, endian)
-            offs += 4
-            objectSymbolTable = moduleData[offs:offs + dwLength]
+            offset = 0x0019
         else:
             # VBA5
             vbaVer = 5
@@ -1046,24 +1119,17 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose
             dwLength = getDWord(moduleData, offs, endian)
             offs += 4
             objectTable = moduleData[offs:offs + dwLength]
-            #offs += dwLength + 4
-            #dwLength = getDWord(moduleData, offs, endian)
-            #offs += 4
-            #objectSymbolTable = moduleData[offs:offs + dwLength]
             offset += 77
         if (verbose):
             if (len(declarationTable)):
                 print('Declaration table:')
-                print(hexdump3(declarationTable, length=16))
+                print(hexdump(declarationTable))
             if (len(indirectTable)):
                 print('Indirect table:')
-                print(hexdump3(indirectTable, length=16))
+                print(hexdump(indirectTable))
             if (len(objectTable)):
                 print('Object table:')
-                print(hexdump3(objectTable, length=16))
-            #if (len(objectSymbolTable)):
-            #    print('Object symbol table:')
-            #    print(hexdump3(objectSymbolTable, length=16))
+                print(hexdump(objectTable))
         dwLength = getDWord(moduleData, offset, endian)
         offset = dwLength + 0x003C
         offset, magic = getVar(moduleData, offset, endian, False)
@@ -1079,13 +1145,13 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose
             offset, lineOffset = getVar(moduleData, offset, endian, True)
             dumpLine(moduleData, pcodeStart + lineOffset, lineLength, endian, vbaVer, is64bit, identifiers, objectTable, indirectTable, declarationTable, verbose, line)
     except Exception as e:
-        print('Error: {0}.'.format(e), file=sys.stderr)
+        print('Error: {}.'.format(e), file=sys.stderr)
     return
 
 def processFile(fileName, verbose, disasmOnly):
     # TODO:
     #	- Handle VBA3 documents
-    print('Processing file: {0}'.format(fileName))
+    print('Processing file: {}'.format(fileName))
     vbaParser = None
     try:
         vbaParser = VBA_Parser(fileName)
@@ -1096,7 +1162,7 @@ def processFile(fileName, verbose, disasmOnly):
         for vbaRoot, projectPath, dirPath in vbaProjects:
             print('=' * 79)
             if (not disasmOnly):
-                print('dir stream: {0}'.format(dirPath))
+                print('dir stream: {}'.format(dirPath))
             dirData, codeModules, is64bit = processDir(vbaParser, dirPath, verbose, disasmOnly)
             vbaProjectPath = vbaRoot + 'VBA/_VBA_PROJECT'
             vbaProjectData = process_VBA_PROJECT(vbaParser, vbaProjectPath, verbose, disasmOnly)
@@ -1106,7 +1172,7 @@ def processFile(fileName, verbose, disasmOnly):
                 print('')
                 i = 0
                 for identifier in identifiers:
-                    print('{0:04X}: {1}'.format(i, identifier))
+                    print('{:04X}: {}'.format(i, identifier))
                     i += 1
                 print('')
                 print('_VBA_PROJECT parsing done.')
@@ -1116,16 +1182,17 @@ def processFile(fileName, verbose, disasmOnly):
             for module in codeModules:
                 modulePath = vbaRoot + 'VBA/' + module
                 moduleData = vbaParser.ole_file.openstream(modulePath).read()
-                print ('{0} - {1:d} bytes'.format(modulePath, len(moduleData)))
+                print ('{} - {:d} bytes'.format(modulePath, len(moduleData)))
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose, disasmOnly)
     except Exception as e:
-        print('Error: {0}.'.format(e), file=sys.stderr)
+        print('Error: {}.'.format(e), file=sys.stderr)
     if (vbaParser):
         vbaParser.close()
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(version='%(prog)s version ' + __VERSION__,
-	description='Dumps the p-code of VBA-containing documents.')
+    parser = argparse.ArgumentParser(description='Dumps the p-code of VBA-containing documents.')
+    parser.add_argument('-v', '--version', action='version',
+	version='%(prog)s version {}'.format(__VERSION__))
     parser.add_argument('-n', '--norecurse', action='store_true',
 	help="don't recurse into directories")
     parser.add_argument('-d', '--disasmonly', action='store_true',
@@ -1147,8 +1214,8 @@ if __name__ == '__main__':
             elif os.path.isfile(name):
                 processFile(name, args.verbose, args.disasmonly)
             else:
-                print('{0} does not exist.'.format(name), file=sys.stderr)
+                print('{} does not exist.'.format(name), file=sys.stderr)
     except Exception as e:
-        print('Error: {0}.'.format(e), file=sys.stderr)
+        print('Error: {}.'.format(e), file=sys.stderr)
         sys.exit(-1)
     sys.exit(0)
