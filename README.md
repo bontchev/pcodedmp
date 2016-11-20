@@ -102,3 +102,5 @@ Version 1.1.0:	Storing the opcodes in a more efficient manner. Implemented VBA7 
 Version 1.2.0:	Disassembling the various declarations (`New`, `Type`, `Dim`, `ReDim`, `Sub`, `Function`, `Property`).
 
 Version 1.2.1:	Now runs under Python 3.x too. Improved support of 64-bit Office documents. Implemented support of some VBA7-specific features (`Friend`, `PtrSafe`, `LongPtr`). Improved the disassembling of `Dim` declarations.
+
+Version 1.2.2:	Implemented handling of documents saved in Open XML format (which is the default format of Office 2007 and higher) - `.docm`, `.xlsm`, `.pptm`.
