@@ -20,7 +20,7 @@ else:
 
 __author__  = 'Vesselin Bontchev <vbontchev@yahoo.com>'
 __license__ = 'GPL'
-__VERSION__ = '1.2.1'
+__VERSION__ = '1.2.2'
 
 def hexdump(buffer, length=16):
     theHex = lambda data: ' '.join('{:02X}'.format(ord(i)) for i in data)
@@ -1148,16 +1148,10 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose
         print('Error: {}.'.format(e), file=sys.stderr)
     return
 
-def processFile(fileName, verbose, disasmOnly):
-    # TODO:
-    #	- Handle VBA3 documents
-    print('Processing file: {}'.format(fileName))
-    vbaParser = None
+def processProject(vbaParser, verbose, disasmOnly):
     try:
-        vbaParser = VBA_Parser(fileName)
         vbaProjects = vbaParser.find_vba_projects()
         if (vbaProjects is None):
-            vbaParser.close()
             return
         for vbaRoot, projectPath, dirPath in vbaProjects:
             print('=' * 79)
@@ -1186,8 +1180,21 @@ def processFile(fileName, verbose, disasmOnly):
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose, disasmOnly)
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
-    if (vbaParser):
-        vbaParser.close()
+
+def processFile(fileName, verbose, disasmOnly):
+    # TODO:
+    #	- Handle VBA3 documents
+    print('Processing file: {}'.format(fileName))
+    try:
+        vbaParser = VBA_Parser(fileName)
+        if (vbaParser.ole_file is None):
+            for subFile in vbaParser.ole_subfiles:
+                processProject(subFile, verbose, disasmOnly)
+        else:
+            processProject(vbaParser, verbose, disasmOnly)
+    except Exception as e:
+        print('Error: {}.'.format(e), file=sys.stderr)
+    vbaParser.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Dumps the p-code of VBA-containing documents.')
