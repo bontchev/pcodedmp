@@ -18,9 +18,12 @@ else:
     def decode(x):
         return x
 
-__author__  = 'Vesselin Bontchev <vbontchev@yahoo.com>'
+__description__ = 'A VBA p-code disassembler'
 __license__ = 'GPL'
-__VERSION__ = '1.2.2'
+__uri__ = 'https://github.com/bontchev/pcodedmp'
+__VERSION__ = '1.2.3'
+__author__ = 'Vesselin Bontchev'
+__email__ = 'vbontchev@yahoo.com'
 
 def hexdump(buffer, length=16):
     theHex = lambda data: ' '.join('{:02X}'.format(ord(i)) for i in data)
@@ -850,16 +853,18 @@ def disasmArg(indirectTable, identifiers, argOffset, endian, vbaVer, is64bit):
         argName = 'ByRef ' + argName
     if (argOpts & 0x0200):
         argName = 'Optional ' + argName
-    if ((flags & 0x0040) == 0):
-        argName = 'ParamArray ' + argName + '()'
+    # TODO - ParamArray arguments aren't disassebled properly
+    #if ((flags & 0x0040) == 0):
+    #    argName = 'ParamArray ' + argName + '()'
     if (flags  & 0x0020):
         argName += ' As '
         argTypeName = ''
-        if ((argType & 0xFFFF0000) == 0xFFFF0000):
+        if (argType & 0xFFFF0000):
             argTypeID = argType & 0x000000FF
             argTypeName = getTypeName(argTypeID)
-        else:
-            argTypeName = getName(indirectTable, identifiers, argType + 6, endian, vbaVer, is64bit)
+        # TODO - Custom type arguments aren't disassembled properly
+        #else:
+        #    argTypeName = getName(indirectTable, identifiers, argType + 6, endian, vbaVer, is64bit)
         argName += argTypeName
     return argName
 
@@ -917,7 +922,7 @@ def disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endi
         funcDecl += ' Lib "' + libName + '" '
     argList = []
     while ((argOffset != 0xFFFFFFFF) and (argOffset != 0) and (argOffset + 26 < len(indirectTable))):
-        argName = disasmArg(indirectTable,identifiers, argOffset, endian, vbaVer, is64bit)
+        argName = disasmArg(indirectTable, identifiers, argOffset, endian, vbaVer, is64bit)
         argList.append(argName)
         argOffset = getDWord(indirectTable, argOffset + 20, endian)
     funcDecl += '(' + ', '.join(argList) + ')'
@@ -1070,7 +1075,7 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose
         if (verbose):
             print('Internal Office version: 0x{:04X}.'.format(version))
 	# Office 2010 is 0x0097; Office 2013 is 0x00A3;
-        # Office 2016 PC 32-bt is 0x00B2, 64-bit is 0x00D7, Mac is 0x00D9
+        # Office 2016 PC 32-bit is 0x00B2, 64-bit is 0x00D7, Mac is 0x00D9
         if (version >= 0x6B):
             if (version >= 0x97):
                 vbaVer = 7
@@ -1170,7 +1175,6 @@ def processProject(vbaParser, verbose, disasmOnly):
                     i += 1
                 print('')
                 print('_VBA_PROJECT parsing done.')
-            if (not disasmOnly):
                 print('-' * 79)
             print('Module streams:')
             for module in codeModules:
@@ -1185,6 +1189,7 @@ def processFile(fileName, verbose, disasmOnly):
     # TODO:
     #	- Handle VBA3 documents
     print('Processing file: {}'.format(fileName))
+    vbaParser = None
     try:
         vbaParser = VBA_Parser(fileName)
         if (vbaParser.ole_file is None):
@@ -1194,9 +1199,10 @@ def processFile(fileName, verbose, disasmOnly):
             processProject(vbaParser, verbose, disasmOnly)
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
-    vbaParser.close()
+    if (vbaParser):
+        vbaParser.close()
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Dumps the p-code of VBA-containing documents.')
     parser.add_argument('-v', '--version', action='version',
 	version='%(prog)s version {}'.format(__VERSION__))
@@ -1226,3 +1232,6 @@ if __name__ == '__main__':
         print('Error: {}.'.format(e), file=sys.stderr)
         sys.exit(-1)
     sys.exit(0)
+
+if __name__ == '__main__':
+    main()
