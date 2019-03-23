@@ -22,6 +22,12 @@ Make sure you have a fairly recent version of it, as the versions before 0.50 do
 
 	pip install oletools --upgrade
 
+This would be enough to allow you to run the script `pcodedmp.py` (which contains the disassembler). However, probably the simplest way to install it is from [PyPi](https://pypi.org/) with `pip`:
+
+	pip install -U pcodedmp
+
+The above command will install the latest version of `pcodedmp` (upgrading an older one if it already exists), while also installing all the necessary dependencies (currently only `oletools` but there might be additional ones in the future).
+
 ## Usage
 
 The script takes as a command-line argument a list of one or more names of files or directories. If the name is an OLE2 document, it will be inspected for VBA code and the p-code of each code module will be disassembled. If the name is a directory, all the files in this directory and its subdirectories will be similarly processed. In addition to the disassembled p-code, by default the script also displays the parsed records of the `dir` stream, as well as the identifiers (variable and function names) used in the VBA modules and stored in the `_VBA_PROJECT` stream.
