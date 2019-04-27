@@ -6,7 +6,8 @@ import argparse
 import sys
 import os
 
-if (sys.version_info > (3,)):
+if sys.version_info > (3,):
+    PYTHON2 = False
     from oletools.olevba3 import VBA_Parser, decompress_stream
     xrange = range
     def ord(x):
@@ -14,6 +15,7 @@ if (sys.version_info > (3,)):
     def decode(x):
         return x.decode('utf-8', errors='replace')
 else:
+    PYTHON2 = True
     from oletools.olevba import VBA_Parser, decompress_stream
     def decode(x):
         return x
@@ -175,8 +177,17 @@ def processDir(vbaParser, dirPath, verbose, disasmOnly):
                 if (not disasmOnly):
                     print(':')
                     print(hexdump(dirData[offset:offset + wLength]))
-                if   (tagName == 'MOD_STREAM'):
-                    codeModules.append(decode(dirData[offset:offset + wLength]))
+                if (tagName == 'MOD_UNICODESTREAM'):
+                    # Convert the stream name from UTF-16-LE to Unicode:
+                    stream_name_unicode = dirData[offset:offset + wLength].decode('utf_16_le', errors='replace')
+                    # print('MOD_UNICODESTREAM (unicode): {!r}'.format(stream_name_unicode))
+                    if PYTHON2:
+                        # On Python 2 only, convert it to bytes in UTF-8, so that it is a native str:
+                        stream_name = stream_name_unicode.encode('utf8', errors='replace')
+                    else:
+                        # On Python 3, native str are unicode
+                        stream_name = stream_name_unicode
+                    codeModules.append(stream_name)
                 elif (tagName == 'PROJ_SYSKIND'):
                     sysKind = getDWord(dirData, offset, '<')
                     is64bit = sysKind == 3
@@ -1179,7 +1190,15 @@ def processProject(vbaParser, verbose, disasmOnly):
             print('Module streams:')
             for module in codeModules:
                 modulePath = vbaRoot + 'VBA/' + module
-                moduleData = vbaParser.ole_file.openstream(modulePath).read()
+                # make sure it is unicode, because that is what vbaParser expects:
+                if PYTHON2:
+                    # modulePath is UTF8 bytes (see processDir)
+                    modulePath_unicode = modulePath.decode('utf8', errors='replace')
+                else:
+                    # modulePath is already unicode
+                    modulePath_unicode = modulePath
+                # print('Calling openstream with modulePath={!r}'.format(modulePath_unicode))
+                moduleData = vbaParser.ole_file.openstream(modulePath_unicode).read()
                 print ('{} - {:d} bytes'.format(modulePath, len(moduleData)))
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, verbose, disasmOnly)
     except Exception as e:
