@@ -12,7 +12,7 @@ if (sys.version_info > (3,)):
     def ord(x):
         return x
     def decode(x):
-        return x.decode('utf-8')
+        return x.decode('utf-8', errors='replace')
 else:
     from oletools.olevba import VBA_Parser, decompress_stream
     def decode(x):
