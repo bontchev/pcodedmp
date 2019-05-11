@@ -45,7 +45,10 @@ CLASSIFIERS = [
     'Topic :: Software Development :: Disassemblers',
     'Topic :: Utilities',
 ]
-INSTALL_REQUIRES = ['oletools>=0.50']
+INSTALL_REQUIRES = [
+    'oletools>=0.54',
+    'win_unicode_console',
+]
 
 ###################################################################
 
