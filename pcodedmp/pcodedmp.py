@@ -803,6 +803,8 @@ def disasmObject(indirectTable, objectTable, identifiers, offset, endian, vbaVer
             typeName = ''
         else:
             offs = (word >> 2) * 10
+            if offs + 4 > len(objectTable):
+                return ''
             flags  = getWord(objectTable, offs, endian)
             hlName = getWord(objectTable, offs + 6, endian)
             # TODO - The following logic is flawed and doesn't always work. Disabling it for now
