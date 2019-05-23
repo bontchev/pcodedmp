@@ -45,7 +45,10 @@ CLASSIFIERS = [
     'Topic :: Software Development :: Disassemblers',
     'Topic :: Utilities',
 ]
-INSTALL_REQUIRES = ['oletools>=0.50']
+INSTALL_REQUIRES = [
+    'oletools>=0.54',
+    'win_unicode_console',
+]
 
 ###################################################################
 
@@ -95,6 +98,7 @@ if __name__ == '__main__':
         maintainer_email=find_meta('email'),
         keywords=KEYWORDS,
         long_description=read_md('README.md'),
+        long_description_content_type='text/markdown',
         packages=PACKAGES,
         classifiers=CLASSIFIERS,
         install_requires=INSTALL_REQUIRES,
