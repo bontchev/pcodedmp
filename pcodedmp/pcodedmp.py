@@ -1242,6 +1242,7 @@ def main():
     args = parser.parse_args()
     errorLevel = 0
     try:
+        output_file = sys.stdout
         if args.outputfile is not None:
             output_file = open(args.outputfile, 'w')
         for name in args.fileOrDir:
