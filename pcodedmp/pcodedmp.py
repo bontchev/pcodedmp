@@ -11,7 +11,7 @@ from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
 
 PYTHON2 = sys.version_info[0] < 3
-codec = 'latin1'    # Assume 'latin1' unless redefined by the XLS file
+codec = 'latin1'    # Assume 'latin1' unless redefined by the 'dir' stream
 if PYTHON2:
     def decode(x):
         return x.decode(codec, errors='replace').encode('utf-8')
@@ -1171,7 +1171,6 @@ def processProject(vbaParser, args, output_file = sys.stdout):
         if vbaProjects is None:
             return
         if output_file.isatty():
-            # print('enabling win_unicode_console', file=sys.stderr)
             win_unicode_console.enable()
         for vbaRoot, projectPath, dirPath in vbaProjects:
             print('=' * 79, file=output_file)
@@ -1205,7 +1204,6 @@ def processProject(vbaParser, args, output_file = sys.stdout):
                 print ('{} - {:d} bytes'.format(modulePath, len(moduleData)), file=output_file)
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, output_file=output_file)
         if output_file.isatty():
-            # print('disabling win_unicode_console', file=sys.stderr)
             win_unicode_console.disable()
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
