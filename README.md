@@ -111,6 +111,11 @@ I do not have access to 64-bit Office 2016 and the few samples of documents, gen
 
 ## Change log
 
+Version 1.2.5:
+
+- Added a sanity check to avoid errors when parsing object declarations
+- The functions that produce output now have the output file (default is `stdout`) as a parameter, for better integration with other tools, thanks to [Philippe Lagadec](https://github.com/decalage2).
+
 Version 1.2.4:
 
 - Implemented support for module names with non-ASCII characters in their names. Thanks to [Philippe Lagadec](https://github.com/decalage2) for helping me with that.
