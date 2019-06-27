@@ -275,7 +275,7 @@ def getTheIdentifiers(vbaProjectData):
             # Stream time
             offset = skipStructure(vbaProjectData, offset, endian, False, 1, False)
             offset = skipStructure(vbaProjectData, offset, endian, False, 1, True)
-            offset, streamID = getVar(vbaProjectData, offset, endian, False)
+            offset, _ = getVar(vbaProjectData, offset, endian, False)
             if version >= 0x6B:
                 offset = skipStructure(vbaProjectData, offset, endian, False, 1, True)
             offset = skipStructure(vbaProjectData, offset, endian, False, 1, True)
@@ -1176,7 +1176,7 @@ def processProject(vbaParser, args, output_file = sys.stdout):
             return
         if output_file.isatty():
             win_unicode_console.enable()
-        for vbaRoot, projectPath, dirPath in vbaProjects:
+        for vbaRoot, _, dirPath in vbaProjects:
             print('=' * 79, file=output_file)
             if not args.disasmOnly:
                 print('dir stream: {}'.format(dirPath), file=output_file)
