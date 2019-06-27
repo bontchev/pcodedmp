@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 import os
 import sys
 import argparse
@@ -11,7 +13,7 @@ from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
 
 PYTHON2 = sys.version_info[0] < 3
-codec = 'latin1'    # Assume 'latin1' unless redefined by the XLS file
+codec = 'latin1'    # Assume 'latin1' unless redefined by the 'dir' stream
 if PYTHON2:
     def decode(x):
         return x.decode(codec, errors='replace').encode('utf-8')
@@ -25,7 +27,7 @@ else:
 __description__ = 'A VBA p-code disassembler'
 __license__ = 'GPL'
 __uri__ = 'https://github.com/bontchev/pcodedmp'
-__VERSION__ = '1.2.4'
+__VERSION__ = '1.2.6'
 __author__ = 'Vesselin Bontchev'
 __email__ = 'vbontchev@yahoo.com'
 
@@ -72,7 +74,7 @@ def getTypeAndLength(buffer, offset, endian):
     else:
         return ord(buffer[offset + 1]), ord(buffer[offset])
 
-def processDir(vbaParser, dirPath, args):
+def processDir(vbaParser, dirPath, args, output_file=sys.stdout):
     tags = {
 	 1 : 'PROJ_SYSKIND',	# 0 - Win16, 1 - Win32, 2 - Mac, 3 - Win64
 	 2 : 'PROJ_LCID',
@@ -136,18 +138,18 @@ def processDir(vbaParser, dirPath, args):
     }
     global codec
     if not args.disasmOnly:
-        print('-' * 79)
-        print('dir stream after decompression:')
+        print('-' * 79, file=output_file)
+        print('dir stream after decompression:', file=output_file)
     is64bit = False
     dirDataCompressed = vbaParser.ole_file.openstream(dirPath).read()
     dirData = decompress_stream(dirDataCompressed)
     streamSize = len(dirData)
     codeModules = []
     if not args.disasmOnly:
-        print('{:d} bytes'.format(streamSize))
+        print('{:d} bytes'.format(streamSize), file=output_file)
         if args.verbose:
-            print(hexdump(dirData))
-        print('dir stream parsed:')
+            print(hexdump(dirData), file=output_file)
+        print('dir stream parsed:', file=output_file)
     offset = 0
     # The "dir" stream is ALWAYS in little-endian format, even on a Mac
     while offset < streamSize:
@@ -166,12 +168,12 @@ def processDir(vbaParser, dirPath, args):
             else:
                 tagName = tags[tag]
             if not args.disasmOnly:
-                print('{:08X}:  {}'.format(offset, tagName), end='')
+                print('{:08X}:  {}'.format(offset, tagName), end='', file=output_file)
             offset += 6
             if wLength:
                 if not args.disasmOnly:
-                    print(':')
-                    print(hexdump(dirData[offset:offset + wLength]))
+                    print(':', file=output_file)
+                    print(hexdump(dirData[offset:offset + wLength]), file=output_file)
                 if tagName == 'PROJ_CODEPAGE':
                     codepage = getWord(dirData, offset, '<')
                     codec = codepages.codepage2codec(codepage)
@@ -190,20 +192,20 @@ def processDir(vbaParser, dirPath, args):
                     is64bit = sysKind == 3
                 offset += wLength
             elif not args.disasmOnly:
-                print('')
+                print('', file=output_file)
         except:
             break
     return dirData, codeModules, is64bit
 
-def process_VBA_PROJECT(vbaParser, vbaProjectPath, args):
+def process_VBA_PROJECT(vbaParser, vbaProjectPath, args, output_file=sys.stdout):
     vbaProjectData = vbaParser.ole_file.openstream(vbaProjectPath).read()
     if args.disasmOnly:
         return vbaProjectData
-    print('-' * 79)
-    print('_VBA_PROJECT stream:')
-    print('{:d} bytes'.format(len(vbaProjectData)))
+    print('-' * 79, file=output_file)
+    print('_VBA_PROJECT stream:', file=output_file)
+    print('{:d} bytes'.format(len(vbaProjectData)), file=output_file)
     if args.verbose:
-        print(hexdump(vbaProjectData))
+        print(hexdump(vbaProjectData), file=output_file)
     return vbaProjectData
 
 def getTheIdentifiers(vbaProjectData):
@@ -968,18 +970,19 @@ def disasmVarArg(moduleData, identifiers, offset, wLength, mnemonic, endian, vba
         varArgName += hexdump
     return varArgName
 
-def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identifiers, objectTable, indirectTable, declarationTable, verbose, line):
+def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit,
+             identifiers, objectTable, indirectTable, declarationTable, verbose, line, output_file=sys.stdout):
     varTypesLong = ['Var', '?', 'Int', 'Lng', 'Sng', 'Dbl', 'Cur', 'Date', 'Str', 'Obj', 'Err', 'Bool', 'Var']
     specials = ['False', 'True', 'Null', 'Empty']
     options = ['Base 0', 'Base 1', 'Compare Text', 'Compare Binary', 'Explicit', 'Private Module']
 
     if verbose and (lineLength > 0):
-        print('{:04X}: '.format(lineStart), end='')
-    print('Line #{:d}:'.format(line))
+        print('{:04X}: '.format(lineStart), end='', file=output_file)
+    print('Line #{:d}:'.format(line), file=output_file)
     if lineLength <= 0:
         return
     if verbose:
-        print(hexdump(moduleData[lineStart:lineStart + lineLength]))
+        print(hexdump(moduleData[lineStart:lineStart + lineLength]), file=output_file)
     offset = lineStart
     endOfLine = lineStart + lineLength
     while offset < endOfLine:
@@ -988,21 +991,21 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
         opcode &= 0x03FF
         translatedOpcode = translateOpcode(opcode, vbaVer, is64bit)
         if not translatedOpcode in opcodes:
-            print('Unrecognized opcode 0x{:04X} at offset 0x{:08X}.'.format(opcode, offset))
+            print('Unrecognized opcode 0x{:04X} at offset 0x{:08X}.'.format(opcode, offset), file=output_file)
             return
         instruction = opcodes[translatedOpcode]
         mnemonic = instruction['mnem']
-        print('\t', end='')
+        print('\t', end='', file=output_file)
         if verbose:
-            print('{:04X} '.format(opcode), end='')
-        print('{} '.format(mnemonic), end='')
+            print('{:04X} '.format(opcode), end='', file=output_file)
+        print('{} '.format(mnemonic), end='', file=output_file)
         if mnemonic in ['Coerce', 'CoerceVar', 'DefType']:
             if opType < len(varTypesLong):
-                print('({}) '.format(varTypesLong[opType]), end='')
+                print('({}) '.format(varTypesLong[opType]), end='', file=output_file)
             elif opType == 17:
-                print('(Byte) ', end='')
+                print('(Byte) ', end='', file=output_file)
             else:
-                print('({:d}) '.format(opType), end='')
+                print('({:d}) '.format(opType), end='', file=output_file)
         elif mnemonic in ['Dim', 'DimImplicit', 'Type']:
             dimType = []
             if   opType & 0x04:
@@ -1016,65 +1019,65 @@ def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit, identif
             if (opType & 0x01) and (mnemonic != 'Type'):
                 dimType.append('Const')
             if len(dimType):
-                print('({}) '.format(' '.join(dimType)), end='')
+                print('({}) '.format(' '.join(dimType)), end='', file=output_file)
         elif mnemonic == 'LitVarSpecial':
-            print('({})'.format(specials[opType]), end='')
+            print('({})'.format(specials[opType]), end='', file=output_file)
         elif mnemonic in ['ArgsCall', 'ArgsMemCall', 'ArgsMemCallWith']:
             if opType < 16:
-                print('(Call) ', end='')
+                print('(Call) ', end='', file=output_file)
             else:
                 opType -= 16
         elif mnemonic == 'Option':
-            print(' ({})'.format(options[opType]), end='')
+            print(' ({})'.format(options[opType]), end='', file=output_file)
         elif mnemonic in ['Redim', 'RedimAs']:
             if opType & 16:
-                print('(Preserve) ', end='')
+                print('(Preserve) ', end='', file=output_file)
         for arg in instruction['args']:
             if arg == 'name':
                 offset, word = getVar(moduleData, offset, endian, False)
                 theName = disasmName(word, identifiers, mnemonic, opType, vbaVer, is64bit)
-                print('{}'.format(theName), end='')
+                print('{}'.format(theName), end='', file=output_file)
             elif arg in ['0x', 'imp_']:
                 offset, word = getVar(moduleData, offset, endian, False)
                 theImp = disasmImp(objectTable, identifiers, arg, word, mnemonic, endian, vbaVer, is64bit)
-                print('{}'.format(theImp), end='')
+                print('{}'.format(theImp), end='', file=output_file)
             elif arg in ['func_', 'var_', 'rec_', 'type_', 'context_']:
                 offset, dword = getVar(moduleData, offset, endian, True)
                 if   (arg == 'rec_') and (len(indirectTable) >= dword + 20):
                     theRec = disasmRec(indirectTable, identifiers, dword, endian, vbaVer, is64bit)
-                    print('{}'.format(theRec), end='')
+                    print('{}'.format(theRec), end='', file=output_file)
                 elif (arg == 'type_') and (len(indirectTable) >= dword + 7):
                     theType = disasmType(indirectTable, dword)
-                    print('(As {})'.format(theType), end='')
+                    print('(As {})'.format(theType), end='', file=output_file)
                 elif (arg == 'var_') and (len(indirectTable) >= dword + 16):
                     if opType & 0x20:
-                        print('(WithEvents) ', end='')
+                        print('(WithEvents) ', end='', file=output_file)
                     theVar = disasmVar(indirectTable, objectTable, identifiers, dword, endian, vbaVer, is64bit)
-                    print('{}'.format(theVar), end='')
+                    print('{}'.format(theVar), end='', file=output_file)
                     if opType & 0x10:
                         word = getWord(moduleData, offset, endian)
                         offset += 2
-                        print(' 0x{:04X}'.format(word), end='')
+                        print(' 0x{:04X}'.format(word), end='', file=output_file)
                 elif (arg == 'func_') and (len(indirectTable) >= dword + 61):
                     theFunc = disasmFunc(indirectTable, declarationTable, identifiers, dword, opType, endian, vbaVer, is64bit)
-                    print('{}'.format(theFunc), end='')
+                    print('{}'.format(theFunc), end='', file=output_file)
                 else:
-                    print('{}{:08X} '.format(arg, dword), end='')
+                    print('{}{:08X} '.format(arg, dword), end='', file=output_file)
                 if is64bit and (arg == 'context_'):
                     offset, dword = getVar(moduleData, offset, endian, True)
-                    print('{:08X} '.format(dword), end='')
+                    print('{:08X} '.format(dword), end='', file=output_file)
         if instruction['varg']:
             offset, wLength = getVar(moduleData, offset, endian, False)
             theVarArg = disasmVarArg(moduleData, identifiers, offset, wLength, mnemonic, endian, vbaVer, is64bit)
-            print('{}'.format(theVarArg), end='')
+            print('{}'.format(theVarArg), end='', file=output_file)
             offset += wLength
             if wLength & 1:
                 offset += 1
-        print('')
+        print('', file=output_file)
 
-def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args):
+def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, output_file = sys.stdout):
     if args.verbose and not args.disasmOnly:
-        print(hexdump(moduleData))
+        print(hexdump(moduleData), file=output_file)
     # Determine endinanness: PC (little-endian) or Mac (big-endian)
     if getWord(moduleData, 2, '<') > 0xFF:
         endian = '>'
@@ -1085,7 +1088,7 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args):
     try:
         version = getWord(vbaProjectData, 2, endian)
         if args.verbose:
-            print('Internal Office version: 0x{:04X}.'.format(version))
+            print('Internal Office version: 0x{:04X}.'.format(version), file=output_file)
         # Office 2010 is 0x0097; Office 2013 is 0x00A3;
         # Office 2016 PC 32-bit is 0x00B2, 64-bit is 0x00D7, Mac is 0x00D9
         if version >= 0x6B:
@@ -1139,14 +1142,14 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args):
             offset += 77
         if args.verbose:
             if len(declarationTable):
-                print('Declaration table:')
-                print(hexdump(declarationTable))
+                print('Declaration table:', file=output_file)
+                print(hexdump(declarationTable), file=output_file)
             if len(indirectTable):
-                print('Indirect table:')
-                print(hexdump(indirectTable))
+                print('Indirect table:', file=output_file)
+                print(hexdump(indirectTable), file=output_file)
             if len(objectTable):
-                print('Object table:')
-                print(hexdump(objectTable))
+                print('Object table:', file=output_file)
+                print(hexdump(objectTable), file=output_file)
         dwLength = getDWord(moduleData, offset, endian)
         offset = dwLength + 0x003C
         offset, magic = getVar(moduleData, offset, endian, False)
@@ -1160,37 +1163,38 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args):
             offset, lineLength = getVar(moduleData, offset, endian, False)
             offset += 2
             offset, lineOffset = getVar(moduleData, offset, endian, True)
-            dumpLine(moduleData, pcodeStart + lineOffset, lineLength, endian, vbaVer, is64bit, identifiers, objectTable, indirectTable, declarationTable, args.verbose, line)
+            dumpLine(moduleData, pcodeStart + lineOffset, lineLength, endian, vbaVer, is64bit, identifiers,
+                     objectTable, indirectTable, declarationTable, args.verbose, line, output_file=output_file)
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
     return
 
-def processProject(vbaParser, args):
+def processProject(vbaParser, args, output_file = sys.stdout):
     try:
         vbaProjects = vbaParser.find_vba_projects()
         if vbaProjects is None:
             return
-        if sys.stdout.isatty():
+        if output_file.isatty():
             win_unicode_console.enable()
         for vbaRoot, projectPath, dirPath in vbaProjects:
-            print('=' * 79)
+            print('=' * 79, file=output_file)
             if not args.disasmOnly:
-                print('dir stream: {}'.format(dirPath))
+                print('dir stream: {}'.format(dirPath), file=output_file)
             dirData, codeModules, is64bit = processDir(vbaParser, dirPath, args)
             vbaProjectPath = vbaRoot + 'VBA/_VBA_PROJECT'
             vbaProjectData = process_VBA_PROJECT(vbaParser, vbaProjectPath, args)
             identifiers = getTheIdentifiers(vbaProjectData)
             if not args.disasmOnly:
-                print('Identifiers:')
-                print('')
+                print('Identifiers:', file=output_file)
+                print('', file=output_file)
                 i = 0
                 for identifier in identifiers:
-                    print('{:04X}: {}'.format(i, identifier))
+                    print('{:04X}: {}'.format(i, identifier), file=output_file)
                     i += 1
-                print('')
-                print('_VBA_PROJECT parsing done.')
-                print('-' * 79)
-            print('Module streams:')
+                print('', file=output_file)
+                print('_VBA_PROJECT parsing done.', file=output_file)
+                print('-' * 79, file=output_file)
+            print('Module streams:', file=output_file)
             for module in codeModules:
                 modulePath = vbaRoot + 'VBA/' + module
                 # make sure it is unicode, because that is what vbaParser expects:
@@ -1201,24 +1205,24 @@ def processProject(vbaParser, args):
                     # modulePath is already unicode
                     modulePath_unicode = modulePath
                 moduleData = vbaParser.ole_file.openstream(modulePath_unicode).read()
-                print ('{} - {:d} bytes'.format(modulePath, len(moduleData)))
-                pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args)
-        if sys.stdout.isatty():
+                print ('{} - {:d} bytes'.format(modulePath, len(moduleData)), file=output_file)
+                pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, output_file=output_file)
+        if output_file.isatty():
             win_unicode_console.disable()
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
 
-def processFile(fileName, args):
+def processFile(fileName, args, output_file=sys.stdout):
     # TODO - Handle VBA3 documents
-    print('Processing file: {}'.format(fileName))
+    print('Processing file: {}'.format(fileName), file=output_file)
     vbaParser = None
     try:
         vbaParser = VBA_Parser(fileName)
         if vbaParser.ole_file is None:
             for subFile in vbaParser.ole_subfiles:
-                processProject(subFile, args)
+                processProject(subFile, args, output_file=output_file)
         else:
-            processProject(vbaParser, args)
+            processProject(vbaParser, args, output_file=output_file)
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
     if vbaParser:
@@ -1240,26 +1244,27 @@ def main():
     args = parser.parse_args()
     errorLevel = 0
     try:
+        output_file = sys.stdout
         if args.outputfile is not None:
-            sys.stdout = open(args.outputfile, 'w')
+            output_file = open(args.outputfile, 'w')
         for name in args.fileOrDir:
             if os.path.isdir(name):
                 for name, subdirList, fileList in os.walk(name):
                     for fname in fileList:
                         fullName = os.path.join(name, fname)
-                        processFile(fullName, args)
+                        processFile(fullName, args, output_file=output_file)
                     if args.norecurse:
                         while len(subdirList) > 0:
                             del(subdirList[0])
             elif os.path.isfile(name):
-                processFile(name, args)
+                processFile(name, args, output_file=output_file)
             else:
                 print('{} does not exist.'.format(name), file=sys.stderr)
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
         errorLevel = -1
     if args.outputfile is not None:
-        sys.stdout = sys.__stdout__
+        output_file.close()
     sys.exit(errorLevel)
 
 if __name__ == '__main__':
