@@ -1180,9 +1180,9 @@ def processProject(vbaParser, args, output_file = sys.stdout):
             print('=' * 79, file=output_file)
             if not args.disasmOnly:
                 print('dir stream: {}'.format(dirPath), file=output_file)
-            dirData, codeModules, is64bit = processDir(vbaParser, dirPath, args)
+            dirData, codeModules, is64bit = processDir(vbaParser, dirPath, args, output_file=output_file)
             vbaProjectPath = vbaRoot + 'VBA/_VBA_PROJECT'
-            vbaProjectData = process_VBA_PROJECT(vbaParser, vbaProjectPath, args)
+            vbaProjectData = process_VBA_PROJECT(vbaParser, vbaProjectPath, args, output_file=output_file)
             identifiers = getTheIdentifiers(vbaProjectData)
             if not args.disasmOnly:
                 print('Identifiers:', file=output_file)
