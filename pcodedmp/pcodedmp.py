@@ -6,11 +6,14 @@ from __future__ import division
 import os
 import sys
 import argparse
+import platform
 import itertools
-import win_unicode_console
 from struct import unpack_from
 from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
+
+if platform.system().lower() == "windows":
+    import win_unicode_console
 
 PYTHON2 = sys.version_info[0] < 3
 codec = 'latin1'    # Assume 'latin1' unless redefined by the 'dir' stream
@@ -1174,7 +1177,8 @@ def processProject(vbaParser, args, output_file = sys.stdout):
         vbaProjects = vbaParser.find_vba_projects()
         if vbaProjects is None:
             return
-        if output_file.isatty():
+        is_windows = output_file.isatty() and platform.system().lower() == "windows"
+        if is_windows:
             win_unicode_console.enable()
         for vbaRoot, _, dirPath in vbaProjects:
             print('=' * 79, file=output_file)
@@ -1207,7 +1211,7 @@ def processProject(vbaParser, args, output_file = sys.stdout):
                 moduleData = vbaParser.ole_file.openstream(modulePath_unicode).read()
                 print ('{} - {:d} bytes'.format(modulePath, len(moduleData)), file=output_file)
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, output_file=output_file)
-        if output_file.isatty():
+        if is_windows:
             win_unicode_console.disable()
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)

@@ -47,7 +47,7 @@ CLASSIFIERS = [
 ]
 INSTALL_REQUIRES = [
     'oletools>=0.54',
-    'win_unicode_console',
+    'win_unicode_console; platform_system == "Windows"',
 ]
 
 ###################################################################
