@@ -5,7 +5,11 @@ import os
 import sys
 import argparse
 import itertools
-import win_unicode_console
+try:
+    import win_unicode_console
+    WIN_UNICODE_CONSOLE = True
+except ImportError:
+    WIN_UNICODE_CONSOLE = False
 from struct import unpack_from
 from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
@@ -1170,7 +1174,7 @@ def processProject(vbaParser, args, output_file = sys.stdout):
         vbaProjects = vbaParser.find_vba_projects()
         if vbaProjects is None:
             return
-        if output_file.isatty():
+        if output_file.isatty() and WIN_UNICODE_CONSOLE:
             win_unicode_console.enable()
         for vbaRoot, projectPath, dirPath in vbaProjects:
             print('=' * 79, file=output_file)
@@ -1203,7 +1207,7 @@ def processProject(vbaParser, args, output_file = sys.stdout):
                 moduleData = vbaParser.ole_file.openstream(modulePath_unicode).read()
                 print ('{} - {:d} bytes'.format(modulePath, len(moduleData)), file=output_file)
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, output_file=output_file)
-        if output_file.isatty():
+        if output_file.isatty() and WIN_UNICODE_CONSOLE:
             win_unicode_console.disable()
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
