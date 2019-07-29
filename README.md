@@ -113,7 +113,7 @@ I do not have access to 64-bit Office 2016 and the few samples of documents, gen
 
 Version 1.2.6:
 
-- Changed it not to require the `win_unicode_console` module on Windows.
+- Changed it not to require the `win_unicode_console` module when it is not available - e.g., when not running on a Windows machine or when running under the PyPy implementation of Python, thanks to [Philippe Lagadec](https://github.com/decalage2).
 
 Version 1.2.5:
 
