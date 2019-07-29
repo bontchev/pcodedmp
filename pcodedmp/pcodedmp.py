@@ -6,17 +6,16 @@ from __future__ import division
 import os
 import sys
 import argparse
-import platform
 import itertools
-from struct import unpack_from
-from oletools.olevba import VBA_Parser, decompress_stream
-from oletools.common import codepages
 
 try:
     import win_unicode_console
     WIN_UNICODE_CONSOLE = True
 except ImportError:
     WIN_UNICODE_CONSOLE = False
+from struct import unpack_from
+from oletools.olevba import VBA_Parser, decompress_stream
+from oletools.common import codepages
 
 PYTHON2 = sys.version_info[0] < 3
 codec = 'latin1'    # Assume 'latin1' unless redefined by the 'dir' stream
