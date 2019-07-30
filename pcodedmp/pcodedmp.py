@@ -1,11 +1,18 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 import os
 import sys
 import argparse
 import itertools
-import win_unicode_console
+
+try:
+    import win_unicode_console
+    WIN_UNICODE_CONSOLE = True
+except ImportError:
+    WIN_UNICODE_CONSOLE = False
 from struct import unpack_from
 from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
@@ -25,7 +32,7 @@ else:
 __description__ = 'A VBA p-code disassembler'
 __license__ = 'GPL'
 __uri__ = 'https://github.com/bontchev/pcodedmp'
-__VERSION__ = '1.2.5'
+__VERSION__ = '1.2.6'
 __author__ = 'Vesselin Bontchev'
 __email__ = 'vbontchev@yahoo.com'
 
@@ -273,7 +280,7 @@ def getTheIdentifiers(vbaProjectData):
             # Stream time
             offset = skipStructure(vbaProjectData, offset, endian, False, 1, False)
             offset = skipStructure(vbaProjectData, offset, endian, False, 1, True)
-            offset, streamID = getVar(vbaProjectData, offset, endian, False)
+            offset, _ = getVar(vbaProjectData, offset, endian, False)
             if version >= 0x6B:
                 offset = skipStructure(vbaProjectData, offset, endian, False, 1, True)
             offset = skipStructure(vbaProjectData, offset, endian, False, 1, True)
@@ -803,6 +810,8 @@ def disasmObject(indirectTable, objectTable, identifiers, offset, endian, vbaVer
             typeName = ''
         else:
             offs = (word >> 2) * 10
+            if offs + 4 > len(objectTable):
+                return ''
             flags  = getWord(objectTable, offs, endian)
             hlName = getWord(objectTable, offs + 6, endian)
             # TODO - The following logic is flawed and doesn't always work. Disabling it for now
@@ -1170,9 +1179,9 @@ def processProject(vbaParser, args, output_file = sys.stdout):
         vbaProjects = vbaParser.find_vba_projects()
         if vbaProjects is None:
             return
-        if output_file.isatty():
+        if output_file.isatty() and WIN_UNICODE_CONSOLE:
             win_unicode_console.enable()
-        for vbaRoot, projectPath, dirPath in vbaProjects:
+        for vbaRoot, _, dirPath in vbaProjects:
             print('=' * 79, file=output_file)
             if not args.disasmOnly:
                 print('dir stream: {}'.format(dirPath), file=output_file)
@@ -1203,7 +1212,7 @@ def processProject(vbaParser, args, output_file = sys.stdout):
                 moduleData = vbaParser.ole_file.openstream(modulePath_unicode).read()
                 print ('{} - {:d} bytes'.format(modulePath, len(moduleData)), file=output_file)
                 pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, output_file=output_file)
-        if output_file.isatty():
+        if output_file.isatty() and WIN_UNICODE_CONSOLE:
             win_unicode_console.disable()
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)

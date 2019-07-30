@@ -89,7 +89,7 @@ End Sub
 
 - Office 2016 64-bit only: The `Declare` part of external function declarations (e.g., `Private Declare PtrSafe Function SomeFunc Lib "SomeLib" Alias "SomeName" () As Long`) is not disassembled.
 
-- Office 2000 and higher: The type of a subroutine or function argument of type `ParamArray` is not disassembled correctly. For instance, `Sub Foo (ParamArrag arg())` will be disassembled as `Sub Foo (arg)`.
+- Office 2000 and higher: The type of a subroutine or function argument of type `ParamArray` is not disassembled correctly. For instance, `Sub Foo (ParamArray arg())` will be disassembled as `Sub Foo (arg)`.
 
 - All versions of Office: The `Alias "SomeName"` part of external function declarations (e.g., `Private Declare PtrSafe Function SomeFunc Lib "SomeLib" Alias "SomeName" () As Long`) is not disassembled.
 
@@ -110,6 +110,10 @@ I do not have access to 64-bit Office 2016 and the few samples of documents, gen
 - I am not an experienced Python programmer and the code is ugly. Somebody more familiar with Python than me should probably rewrite the script and make it look better.
 
 ## Change log
+
+Version 1.2.6:
+
+- Changed it not to require the `win_unicode_console` module when it is not available - e.g., when not running on a Windows machine or when running under the PyPy implementation of Python, thanks to [Philippe Lagadec](https://github.com/decalage2).
 
 Version 1.2.5:
 
