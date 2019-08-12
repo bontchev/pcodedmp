@@ -14,7 +14,7 @@ try:
 except ImportError:
     WIN_UNICODE_CONSOLE = False
 from struct import unpack_from
-from oletools.olevba import VBA_Parser, decompress_stream
+#from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
 
 PYTHON2 = sys.version_info[0] < 3
@@ -1222,6 +1222,7 @@ def processFile(fileName, args, output_file=sys.stdout):
     print('Processing file: {}'.format(fileName), file=output_file)
     vbaParser = None
     try:
+        from oletools.olevba import VBA_Parser, decompress_stream
         vbaParser = VBA_Parser(fileName)
         if vbaParser.ole_file is None:
             for subFile in vbaParser.ole_subfiles:
