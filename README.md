@@ -111,6 +111,14 @@ I do not have access to 64-bit Office 2016 and the few samples of documents, gen
 
 ## Change log
 
+Version 1.2.7:
+
+- When the `-b` option is used, the listing now also contains a dump of the line table.
+
+- If a line contains leading spaces, their number is now indicated as `Line #N (X leading spaces):`.
+
+- Added error message when trying to read past the end of the stream (e.g., because of some corrupted structure in it).
+
 Version 1.2.6:
 
 - Changed it not to require the `win_unicode_console` module when it is not available - e.g., when not running on a Windows machine or when running under the PyPy implementation of Python, thanks to [Philippe Lagadec](https://github.com/decalage2).

@@ -3,6 +3,7 @@
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+
 import os
 import sys
 import argparse
@@ -13,6 +14,7 @@ try:
     WIN_UNICODE_CONSOLE = True
 except ImportError:
     WIN_UNICODE_CONSOLE = False
+
 from struct import unpack_from
 from oletools.olevba import VBA_Parser, decompress_stream
 from oletools.common import codepages
@@ -32,7 +34,7 @@ else:
 __description__ = 'A VBA p-code disassembler'
 __license__ = 'GPL'
 __uri__ = 'https://github.com/bontchev/pcodedmp'
-__VERSION__ = '1.2.6'
+__VERSION__ = '1.2.7'
 __author__ = 'Vesselin Bontchev'
 __email__ = 'vbontchev@yahoo.com'
 
@@ -46,9 +48,13 @@ def hexdump(buffer, length=16):
     return result
 
 def getWord(buffer, offset, endian):
+    if offset + 4 > len(buffer):
+        raise Exception('Reading WORD past EndOfStream; len = 0x{:08x}, offset = 0x{:08x}'.format(len(buffer), offset))
     return unpack_from(endian + 'H', buffer, offset)[0]
 
 def getDWord(buffer, offset, endian):
+    if offset + 8 > len(buffer):
+        raise Exception('Reading DWORD past EndOfStream; len = 0x{:08x}, offset = 0x{:08x}'.format(len(buffer), offset))
     return unpack_from(endian + 'L', buffer, offset)[0]
 
 def skipStructure(buffer, offset, endian, isLengthDW, elementSize, checkForMinusOne):
@@ -976,14 +982,19 @@ def disasmVarArg(moduleData, identifiers, offset, wLength, mnemonic, endian, vba
     return varArgName
 
 def dumpLine(moduleData, lineStart, lineLength, endian, vbaVer, is64bit,
-             identifiers, objectTable, indirectTable, declarationTable, verbose, line, output_file=sys.stdout):
+             identifiers, objectTable, indirectTable, declarationTable,
+             lineTable, verbose, line, output_file=sys.stdout):
     varTypesLong = ['Var', '?', 'Int', 'Lng', 'Sng', 'Dbl', 'Cur', 'Date', 'Str', 'Obj', 'Err', 'Bool', 'Var']
     specials = ['False', 'True', 'Null', 'Empty']
     options = ['Base 0', 'Base 1', 'Compare Text', 'Compare Binary', 'Explicit', 'Private Module']
 
     if verbose and (lineLength > 0):
         print('{:04X}: '.format(lineStart), end='', file=output_file)
-    print('Line #{:d}:'.format(line), file=output_file)
+    leadingSpaces = ord(lineTable[line * 12 + 3])
+    print('Line #{:d}'.format(line), end='', file=output_file)
+    if leadingSpaces:
+        print(' ({:d} leading spaces)'.format(leadingSpaces), end='', file=output_file)
+    print(':', file=output_file)
     if lineLength <= 0:
         return
     if verbose:
@@ -1163,13 +1174,18 @@ def pcodeDump(moduleData, vbaProjectData, dirData, identifiers, is64bit, args, o
         offset += 2
         offset, numLines = getVar(moduleData, offset, endian, False)
         pcodeStart = offset + numLines * 12 + 10
+        lineTable = moduleData[offset:offset + numLines * 12]
+        if args.verbose:
+            if numLines:
+                print('Line table:', file=output_file)
+                print(hexdump(lineTable, 12), file=output_file)
         for line in range(numLines):
             offset += 4
             offset, lineLength = getVar(moduleData, offset, endian, False)
             offset += 2
             offset, lineOffset = getVar(moduleData, offset, endian, True)
             dumpLine(moduleData, pcodeStart + lineOffset, lineLength, endian, vbaVer, is64bit, identifiers,
-                     objectTable, indirectTable, declarationTable, args.verbose, line, output_file=output_file)
+                     objectTable, indirectTable, declarationTable, lineTable, args.verbose, line, output_file=output_file)
     except Exception as e:
         print('Error: {}.'.format(e), file=sys.stderr)
     return
