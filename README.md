@@ -77,7 +77,7 @@ For reference, it is the result of compiling the following VBA code:
 ```vba
 Private Sub Document_Open()
     MsgBox "This could have been a virus!", vbOKOnly + vbInformation, "Virus!"
-    Shell("calc.exe")
+    Shell ("calc.exe")
 End Sub
 ```
 
